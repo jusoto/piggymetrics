@@ -10,7 +10,7 @@ security:
 server:
   servlet:
     context-path: /notifications
-  port: 8000
+  port: ${SERVER_PORT:8000}
 
 remind:
   cron: 0 0 0 * * *

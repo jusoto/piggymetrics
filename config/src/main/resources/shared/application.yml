@@ -13,6 +13,9 @@ hystrix:
 eureka:
   instance:
     prefer-ip-address: true
+    # With the Envoy sidecar the app listens on SERVER_PORT and Envoy on the public port;
+    # advertise the Envoy port so gateway -> service calls go through the sidecar.
+    non-secure-port: ${EUREKA_INSTANCE_NONSECUREPORT:${server.port}}
   client:
     serviceUrl:
       defaultZone: http://registry:8761/eureka/
@@ -25,3 +28,10 @@ security:
 spring:
   rabbitmq:
     host: rabbitmq
+  zipkin:
+    base-url: http://${LOGGING_SERVER:monitor}:${LOGGING_PORT:9411}/
+    sender:
+      type: web  # rabbit is on the classpath; send spans over HTTP to the monitor
+  sleuth:
+    sampler:
+      probability: 1.0

@@ -1,7 +1,16 @@
-FROM java:8-jre
-MAINTAINER Alexander Lukyanchikov <sqshq@sqshq.com>
-
-ADD ./target/gateway.jar /app/
-CMD ["java", "-Xmx200m", "-jar", "/app/gateway.jar"]
-
-EXPOSE 4000
+# Description: Dockerfile for gateway with an Envoy sidecar (same layout as rideshare)
+# Envoy listens on 4000 and forwards to the app on 4001; requests/responses are tapped to /var/log/envoy
+FROM ubuntu:22.04
+LABEL MAINTAINER="Juan P. Sotomayor jsoto128@fiu.edu"
+RUN apt-get update && apt-get install -y openjdk-8-jdk apt-transport-https gnupg2 curl lsb-release
+ADD https://github.com/envoyproxy/envoy/releases/download/v1.29.3/envoy-1.29.3-linux-x86_64 /usr/local/bin/envoy
+RUN chmod +x /usr/local/bin/envoy && \
+    mkdir /app
+WORKDIR /app
+VOLUME /tmp
+COPY ./target/gateway.jar /app/gateway.jar
+COPY envoy.yaml /etc/envoy/envoy.yaml
+RUN chmod go+r /etc/envoy/envoy.yaml
+ENV JAVA_OPTS="-Xmx200m"
+EXPOSE 4000 4001 9901
+ENTRYPOINT [ "sh", "-c", "/usr/local/bin/envoy -c /etc/envoy/envoy.yaml & java $JAVA_OPTS -Djava.security.egd=file:/dev/./urandom -jar /app/gateway.jar" ]

@@ -14,3 +14,10 @@ target/
 **/*.project
 **/*.classpath
 **/*.settings
+
+# Local environment files (ignore secrets)
+.env
+.env.local
+.env.*
+# keep example env files in the repo
+!.env.example

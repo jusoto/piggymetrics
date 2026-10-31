@@ -10,4 +10,4 @@ spring:
 server:
   servlet:
     context-path: /uaa
-  port: 5000
+  port: ${SERVER_PORT:5000}

@@ -80,7 +80,7 @@ $(window).load(function(){
         global.mobileClient = true;
 	}
 
-    $.getJSON("https://api.exchangeratesapi.io/latest?base=RUB&symbols=EUR,USD", function( data ) {
+    $.getJSON("https://open.er-api.com/v6/latest?base=RUB", function( data ) {
         global.eur = 1 / data.rates.EUR;
         global.usd = 1 / data.rates.USD;
     });
