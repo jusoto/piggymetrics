@@ -1,9 +1,24 @@
+# Gateway listens internally on 4001; Envoy fronts it on 4000
+server:
+  port: 4001
+
 spring:
   application:
     name: gateway
   cloud:
     config:
-      uri: http://config:8888
+      uri: http://${CONFIG_HOST:config}:8888
       fail-fast: true
-      password: ${CONFIG_SERVICE_PASSWORD}
       username: user
+      password: ${CONFIG_SERVICE_PASSWORD}
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://${EUREKA_HOST:registry}:8761/eureka/
+  instance:
+    # Make Eureka advertise the Envoy listener (4000), not 4001
+    non-secure-port: 4000
+    # In Docker, IPs change; hostname/service-name is usually better
+    prefer-ip-address: false
+    hostname: gateway

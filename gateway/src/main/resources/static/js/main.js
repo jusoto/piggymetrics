@@ -46,7 +46,7 @@ function AddIncome(income_id, title, icon, currency, period, amount){
         icon: icon,
         currency: currency,
         period: period,
-        amount: amount.toString()
+        amount: Number(amount)
     }
 }
 
@@ -57,7 +57,7 @@ function AddExpense(expense_id, title, icon, currency, period, amount){
         icon: icon,
         currency: currency,
         period: period,
-        amount: amount.toString()
+        amount: Number(amount)
     }
 }
 
@@ -128,6 +128,7 @@ function initGreetingPage() {
 }
 
 function initSettingsPage() {
+    $(".modalvalue").autoNumeric("init");
     switch (user.checkedCurr) {
         case "RUB": $("#rublesign").css({"background-position": "-150px 0"});
             break;
@@ -207,12 +208,12 @@ function addSavings() {
 // Filling Incomes and Expenses columns
 function addItems() {
     Object.keys(incomes).forEach(function(key) {
-        var value = incomes[key].amount.replace(/(\d)(?=(\d\d\d)+([^\d]|$))/g, '$1 </span><span class="lightdigit20">');
+        var value = String(incomes[key].amount).replace(/(\d)(?=(\d\d\d)+([^\d]|$))/g, '$1 </span><span class="lightdigit20">');
         $("#incomeslider").append('<div onclick="itemClick(this)" class="incomeitem" id="income-' + incomes[key].income_id + '"><span class="title11museo300">' + incomes[key].title + '</span><p class="title9museo300"><span class="bolddigit20">' + value + ' </span>' + checkCurrency(incomes[key].currency) + checkPeriod(incomes[key].period) + '</span></p><div class="itembackground"></div></div>');
         $("#income-" + incomes[key].income_id).data({"id": incomes[key].income_id, "icon": incomes[key].icon, "amount": incomes[key].amount, "title": incomes[key].title, "currency": incomes[key].currency ,"period": incomes[key].period}).children("div").addClass(incomes[key].icon);
     });
     Object.keys(expenses).forEach(function(key) {
-        var value = expenses[key].amount.replace(/(\d)(?=(\d\d\d)+([^\d]|$))/g, '$1 </span><span class="lightdigit20">');
+        var value = String(expenses[key].amount).replace(/(\d)(?=(\d\d\d)+([^\d]|$))/g, '$1 </span><span class="lightdigit20">');
         $("#expenseslider").append('<div onclick="itemClick(this)" class="expenseitem" id="expense-' + expenses[key].expense_id + '"><span class="title11museo300">' + expenses[key].title + '</span><p class="title9museo300"><span class="bolddigit20">' + value + ' </span>' + checkCurrency(expenses[key].currency) + checkPeriod(expenses[key].period) + '</span></p><div class="itembackground"></div></div>');
         $("#expense-" + expenses[key].expense_id).data({"id": expenses[key].expense_id, "icon": expenses[key].icon, "amount": expenses[key].amount, "title": expenses[key].title, "currency": expenses[key].currency ,"period": expenses[key].period}).children("div").addClass(expenses[key].icon);
     });
@@ -397,7 +398,7 @@ function addNewItem() {
         itemIcon = $(".initicons").data("iconselected"),
         itemCurrency = $(".modalcurrency").val(),
         itemPeriod = $(".modalperiod").val(),
-        itemValue = $(".modalvalue").autoNumeric("get"),
+        itemValue = Number($(".modalvalue").autoNumeric("get")),
         itemId = 0;
     if (checkModalFields(itemValue, itemTitle)) { // If inputs are proper filled, add incomes or expenses
         if ($(".initicons").data ("incomes-expenses") == "incomes") {
@@ -418,7 +419,7 @@ function addNewItem() {
     setTimeout(function() { runConvert() }, 230);
 }
 function addNewDiv(whichColumn, itemId, itemTitle, itemIcon, itemCurrency, itemPeriod, itemValue) {
-    var value = itemValue.replace(/(\d)(?=(\d\d\d)+([^\d]|$))/g, '$1 </span><span class="lightdigit20">');
+    var value = String(itemValue).replace(/(\d)(?=(\d\d\d)+([^\d]|$))/g, '$1 </span><span class="lightdigit20">');
     $("#" + whichColumn + "slider").append('<div onclick="itemClick(this)" class="' + whichColumn + 'item" id="' + whichColumn +'-' + itemId + '"><span class="title11museo300">' + itemTitle + '</span><p class="title9museo300"><span class="bolddigit20">' + value + ' </span>' + checkCurrency(itemCurrency) + checkPeriod(itemPeriod) + '</span></p><div class="itembackground"></div></div>');
     $("#" + whichColumn + "-" + itemId).addClass("newitemadded").data({"id": itemId, "icon": itemIcon, "amount": itemValue, "title": itemTitle, "currency": itemCurrency ,"period": itemPeriod}).children("div").addClass(itemIcon);
     setTimeout(function() { $("#" + whichColumn + "-" + itemId).removeClass("newitemadded") }, 4100);
@@ -457,7 +458,7 @@ function itemClick(item) {
     saveOldItem = function() {
         if (checkModalFields($(".modalvalue").val(), $(".modaltitle").val())) { // If inputs are proper filled, save changes
             whichColumn[itemId].title = $(".modaltitle").val();
-            whichColumn[itemId].amount = $(".modalvalue").autoNumeric("get");
+            whichColumn[itemId].amount = Number($(".modalvalue").autoNumeric("get"));
             whichColumn[itemId].icon = $(".initicons").data("iconselected");
             whichColumn[itemId].currency = $(".modalcurrency").val();
             whichColumn[itemId].period = $(".modalperiod").val();
@@ -875,14 +876,20 @@ function jsonDataSave() {
             headers: {'Authorization': 'Bearer ' + getOauthTokenFromStorage()},
             data: JSON.stringify({
                 note: user.notes,
-                incomes: $.map(incomes, function(value) {return [value]}),
-                expenses: $.map(expenses, function(value) {return [value]}),
+                incomes: $.map(incomes, function(v) {
+                    v.amount = Number(v.amount);
+                    return [v];
+                }),
+                expenses: $.map(expenses, function(v) {
+                    v.amount = Number(v.amount);
+                    return [v];
+                }),
                 saving: {
-                    amount: Math.ceil(savings.freeMoney),
+                    amount: Number(Math.ceil(Number(savings.freeMoney))),
                     capitalization: savings.capitalization,
                     deposit: savings.deposit,
                     currency: user.checkedCurr,
-                    interest: savings.percent
+                    interest: Number(savings.percent)
                 }
             }),
             success: function () {

@@ -1,0 +1,6 @@
+projectKey=my:pg-account-service:v2
+serverUrl=http://localhost:9000
+serverVersion=8.2-SNAPSHOT
+dashboardUrl=http://localhost:9000/dashboard?id=my%3Apg-account-service%3Av2
+ceTaskId=AZYmxyMPMSc2qiraD84r
+ceTaskUrl=http://localhost:9000/api/ce/task?id=AZYmxyMPMSc2qiraD84r

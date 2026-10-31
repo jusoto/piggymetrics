@@ -1,0 +1,325 @@
+version: "2.1"
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: always
+    ports:
+      - 15672:15672
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+
+  config:
+    environment:
+      CONFIG_SERVICE_PASSWORD: ${CONFIG_SERVICE_PASSWORD}
+    image: jusoto/v2/piggymetrics-config
+    restart: always
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+
+  registry:
+    environment:
+      CONFIG_SERVICE_PASSWORD: ${CONFIG_SERVICE_PASSWORD}
+    image: jusoto/v2/piggymetrics-registry
+    restart: always
+    depends_on:
+      config:
+        condition: service_healthy
+    ports:
+      - 8761:8761
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+
+  # gateway:
+  #   environment:
+  #     CONFIG_SERVICE_PASSWORD: $CONFIG_SERVICE_PASSWORD
+  #     SERVER_PORT: "4001"
+  #     EUREKA_INSTANCE_NONSECUREPORT: "4000"
+  #   image: jusoto/v2/piggymetrics-gateway
+  #   restart: always
+  #   depends_on:
+  #     config:
+  #       condition: service_healthy
+  #   ports:
+  #     - 80:4000
+  #     # - 8080:4001
+  #     # - 19004:19000
+  #   logging:
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "10"
+  #   volumes:
+  #     - ./gateway/envoy.yaml:/etc/envoy/envoy.yaml:ro
+
+  gateway:
+    image: jusoto/v2/piggymetrics-gateway
+    restart: always
+    depends_on:
+      config:
+        condition: service_healthy
+    environment:
+      CONFIG_SERVICE_PASSWORD: ${CONFIG_SERVICE_PASSWORD}
+      # App listens internally on 4001
+      SERVER_PORT: "4001"
+      # Eureka should advertise the Envoy port (4000)
+      # Spring relaxed binding prefers this format:
+      EUREKA_INSTANCE_NON_SECURE_PORT: "4000"
+      # Keep your old var too if your image expects it:
+      EUREKA_INSTANCE_NONSECUREPORT: "4000"
+    ports:
+      - "80:4000"     # publish the *Envoy* listener (shared netns)
+      # - "19004:19000"  # only if you want Envoy admin from host (not recommended)
+
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+
+  envoy-gateway:
+    image: envoyproxy/envoy:v1.29.3
+    restart: always
+    # Share the gateway container’s network namespace:
+    network_mode: "service:gateway"
+    depends_on:
+      - gateway
+    volumes:
+      - ./gateway/envoy.yaml:/etc/envoy/envoy.yaml:ro
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info"]
+
+
+  auth-service:
+    environment:
+      CONFIG_SERVICE_PASSWORD: ${CONFIG_SERVICE_PASSWORD}
+      NOTIFICATION_SERVICE_PASSWORD: ${NOTIFICATION_SERVICE_PASSWORD}
+      STATISTICS_SERVICE_PASSWORD: ${STATISTICS_SERVICE_PASSWORD}
+      ACCOUNT_SERVICE_PASSWORD: ${ACCOUNT_SERVICE_PASSWORD}
+      MONGODB_PASSWORD: ${MONGODB_PASSWORD}
+      SERVER_PORT: "5001"
+      EUREKA_INSTANCE_NONSECUREPORT: "5000"
+    image: jusoto/v2/piggymetrics-auth-service
+    restart: always
+    depends_on:
+      config:
+        condition: service_healthy
+    ports:
+      - 5000:5000
+      - 5001:5001
+      - 19005:19000
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+    volumes:
+      - ./auth-service/envoy.yaml:/etc/envoy/envoy.yaml:ro
+
+  auth-mongodb:
+    environment:
+      MONGODB_PASSWORD: ${MONGODB_PASSWORD}
+    image: jusoto/v2/piggymetrics-mongodb
+    restart: always
+    ports:
+      - 27018:27017
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+
+  # account-service:
+  #   environment:
+  #     CONFIG_SERVICE_PASSWORD: $CONFIG_SERVICE_PASSWORD
+  #     ACCOUNT_SERVICE_PASSWORD: $ACCOUNT_SERVICE_PASSWORD
+  #     MONGODB_PASSWORD: $MONGODB_PASSWORD
+  #   image: jusoto/v2/piggymetrics-account-service
+  #   restart: always
+  #   depends_on:
+  #     config:
+  #       condition: service_healthy
+  #   logging:
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "10"
+
+  account-service:
+    environment:
+      CONFIG_SERVICE_PASSWORD: ${CONFIG_SERVICE_PASSWORD}
+      ACCOUNT_SERVICE_PASSWORD: ${ACCOUNT_SERVICE_PASSWORD}
+      MONGODB_PASSWORD: ${MONGODB_PASSWORD}
+      SERVER_PORT: "6001"
+      EUREKA_INSTANCE_NONSECUREPORT: "6000"
+    image: jusoto/v2/piggymetrics-account-service
+    restart: always
+    depends_on:
+      config:
+        condition: service_healthy
+    ports:
+      - 6000:6000
+      # - 6001:6001
+      # - 19006:19000
+    logging:
+      options: { max-size: "10m", max-file: "10" }
+    volumes:
+      - ./account-service/envoy.yaml:/etc/envoy/envoy.yaml:ro
+
+  account-mongodb:
+    environment:
+      INIT_DUMP: account-service-dump.js
+      MONGODB_PASSWORD: ${MONGODB_PASSWORD}
+    image: jusoto/v2/piggymetrics-mongodb
+    restart: always
+    ports:
+      - 27019:27017
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+
+  statistics-service:
+    environment:
+      RATES_URL: "https://api.exchangerate.host"
+      CONFIG_SERVICE_PASSWORD: ${CONFIG_SERVICE_PASSWORD}
+      MONGODB_PASSWORD: ${MONGODB_PASSWORD}
+      STATISTICS_SERVICE_PASSWORD: ${STATISTICS_SERVICE_PASSWORD}
+      SERVER_PORT: "7001"
+      EUREKA_INSTANCE_NONSECUREPORT: "7000"
+    image: jusoto/v2/piggymetrics-statistics-service
+    restart: always
+    depends_on:
+      config:
+        condition: service_healthy
+    ports:
+      - 7000:7000
+      # - 7001:7001
+      # - 19007:19000
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+    volumes:
+      - ./statistics-service/envoy.yaml:/etc/envoy/envoy.yaml:ro
+
+  statistics-mongodb:
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGODB_PASSWORD: ${MONGODB_PASSWORD}
+    image: jusoto/v2/piggymetrics-mongodb
+    restart: always
+    ports:
+      - 27020:27017
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+
+  notification-service:
+    environment:
+      CONFIG_SERVICE_PASSWORD: ${CONFIG_SERVICE_PASSWORD}
+      MONGODB_PASSWORD: ${MONGODB_PASSWORD}
+      NOTIFICATION_SERVICE_PASSWORD: ${NOTIFICATION_SERVICE_PASSWORD}
+      SERVER_PORT: "8001"
+      EUREKA_INSTANCE_NONSECUREPORT: "8000"
+    image: jusoto/v2/piggymetrics-notification-service
+    restart: always
+    depends_on:
+      config:
+        condition: service_healthy
+    ports:
+      - 8000:8000
+      # - 8001:8001
+      # - 19008:19000
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+    volumes:
+      - ./notification-service/envoy.yaml:/etc/envoy/envoy.yaml:ro
+
+  notification-mongodb:
+    image: jusoto/v2/piggymetrics-mongodb
+    restart: always
+    environment:
+      MONGODB_PASSWORD: ${MONGODB_PASSWORD}
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+
+  monitoring:
+    environment:
+      CONFIG_SERVICE_PASSWORD: ${CONFIG_SERVICE_PASSWORD}
+    image: jusoto/v2/piggymetrics-monitoring
+    restart: always
+    depends_on:
+      config:
+        condition: service_healthy
+    ports:
+      - 9000:8080
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+
+  turbine-stream-service:
+    environment:
+      CONFIG_SERVICE_PASSWORD: ${CONFIG_SERVICE_PASSWORD}
+    image: jusoto/v2/piggymetrics-turbine-stream-service
+    restart: always
+    depends_on:
+      config:
+        condition: service_healthy
+    ports:
+      - 8989:8989
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "10"
+
+  # envoy-account:
+  #   image: envoyproxy/envoy:v1.29.0
+  #   container_name: envoy-account
+  #   volumes:
+  #     - ./envoy/account-envoy.yaml:/etc/envoy/envoy.yaml
+  #   ports:
+  #     - "9901:9901" # Admin interface
+  #     - "8081:8080" # Listener for requests (frontend to service)
+
+  # envoy-auth:
+  #   image: envoyproxy/envoy:v1.29.0
+  #   container_name: envoy-auth
+  #   volumes:
+  #     - ./envoy/account-envoy.yaml:/etc/envoy/envoy.yaml
+  #   ports:
+  #     - "9902:9901" # Admin interface
+  #     - "8082:8080" # Listener for requests (frontend to service)
+
+  # envoy-gateway:
+  #   image: envoyproxy/envoy:v1.29.0
+  #   container_name: envoy-gateway
+  #   volumes:
+  #     - ./envoy/account-envoy.yaml:/etc/envoy/envoy.yaml
+  #   ports:
+  #     - "9903:9901" # Admin interface
+  #     - "8083:8080" # Listener for requests (frontend to service)
+
+  # envoy-notification:
+  #   image: envoyproxy/envoy:v1.29.0
+  #   container_name: envoy-notification
+  #   volumes:
+  #     - ./envoy/account-envoy.yaml:/etc/envoy/envoy.yaml
+  #   ports:
+  #     - "9904:9901" # Admin interface
+  #     - "8084:8080" # Listener for requests (frontend to service)
+
+  # envoy-statistics:
+  #   image: envoyproxy/envoy:v1.29.0
+  #   container_name: envoy-statistics
+  #   volumes:
+  #     - ./envoy/account-envoy.yaml:/etc/envoy/envoy.yaml
+  #   ports:
+  #     - "9905:9901" # Admin interface
+  #     - "8085:8080" # Listener for requests (frontend to service)

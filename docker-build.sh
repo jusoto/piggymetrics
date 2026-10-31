@@ -1,0 +1,10 @@
+docker build ./account-service -t jusoto/v2/piggymetrics-account-service 
+docker build ./auth-service -t jusoto/v2/piggymetrics-auth-service
+docker build ./config -t jusoto/v2/piggymetrics-config
+docker build ./gateway -t jusoto/v2/piggymetrics-gateway
+docker build ./mongodb -t jusoto/v2/piggymetrics-mongodb
+docker build ./monitoring -t jusoto/v2/piggymetrics-monitoring
+docker build ./notification-service -t jusoto/v2/piggymetrics-notification-service
+docker build ./registry -t jusoto/v2/piggymetrics-registry
+docker build ./statistics-service -t jusoto/v2/piggymetrics-statistics-service
+docker build ./turbine-stream-service -t jusoto/v2/piggymetrics-turbine-stream-service

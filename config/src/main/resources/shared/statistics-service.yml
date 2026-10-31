@@ -22,4 +22,4 @@ server:
   port: 7000
 
 rates:
-  url: https://api.exchangeratesapi.io
+  url: https://open.er-api.com/v6/latest

@@ -1,0 +1,2 @@
+http_code,time_namelookup,time_connect,time_appconnect,time_pretransfer,time_redirect,time_starttransfer,time_total
+000,0.005967,0.006098,0.000000,0.006140,0.000000,0.000000,0.010397
